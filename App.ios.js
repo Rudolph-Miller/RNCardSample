@@ -41,7 +41,6 @@ export default class App extends Component<{}> {
       onPanResponderMove: Animated.event([
         null,
         {
-          dx: this.state.pan.x,
           dy: this.state.pan.y
         }
       ]),
@@ -57,7 +56,11 @@ export default class App extends Component<{}> {
   }
 
   handlePanResponderEnd(e, gestureState) {
-    this.state.pan.flattenOffset();
+    // this.state.pan.flattenOffset();
+    Animated.spring(this.state.pan, {
+      toValue: { x: 0, y: 0 },
+      friction: 6
+    }).start();
   }
 
   handlePanResponderRelease(e, gentureState) {
