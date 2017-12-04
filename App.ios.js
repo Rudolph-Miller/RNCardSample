@@ -16,13 +16,21 @@ const { width, height } = Dimensions.get('window');
 const SLIDER_WIDTH = width;
 const ITEM_WIDTH = width - 100;
 const ITEM_HEIGHT = height - 100;
+const SWIPE_THRESHOLD = 120;
 
-export default class App extends Component<{}> {
+function clamp(value, min, max) {
+  return min < max
+    ? (value < min ? min : value > max ? max : value)
+    : (value < max ? max : value > min ? min : value)
+}
+
+export default class App extends Component {
   constructor() {
     super();
 
     this.state = {
       index: 0,
+      data: [{ key: 1 }, { key: 2 }],
       pan: new Animated.ValueXY()
     }
 
@@ -63,11 +71,37 @@ export default class App extends Component<{}> {
     }).start();
   }
 
-  handlePanResponderRelease(e, gentureState) {
-    Animated.spring(this.state.pan, {
-      toValue: { x: 0, y: 0 },
-      friction: 6
-    }).start();
+  handlePanResponderRelease(e, { vy }) {
+    const velocity = vy > 0 ? clamp(vy, 9, 12) : clamp(vy * -1, 9, 12) * -1;
+
+    const hasSwiped = Math.abs(this.state.pan.y._value) > SWIPE_THRESHOLD;
+    const hasMovedUp = hasSwiped && this.state.pan.y._value > 0;
+    const hasMovedDown = hasSwiped && this.state.pan.y._value < 0;
+
+    if (hasMovedUp || hasMovedDown) {
+      Animated.decay(this.state.pan, {
+        velocity: { x: 0, y: velocity },
+        deceleration: 0.98
+      }).start((state) => {
+        if (state.finished) {
+          this.setState({
+            data: this.state.data.slice(0, this.state.index).concat(this.state.data.slice(this.state.index + 1, this.state.data.length))
+          });
+
+          Animated.timing(this.state.pan, {
+            toValue: { x: 0, y: 0 },
+            duration: 0
+          }).start();
+        } else {
+          alert('Not finished');
+        }
+      });
+    } else {
+      Animated.spring(this.state.pan, {
+        toValue: { x: 0, y: 0 },
+        friction: 6
+      }).start();
+    }
   }
 
   renderItem({ item, index }) {
@@ -82,7 +116,7 @@ export default class App extends Component<{}> {
         style={style}
         {...(index == this.state.index ? this.panResponder.panHandlers : null)} >
         <Text style={styles.welocme}>
-          Hello
+          Hello {item.key}
         </Text>
       </Animated.View>
     );
@@ -99,7 +133,7 @@ export default class App extends Component<{}> {
           itemWidth={ITEM_WIDTH}
           inactiveSlideOpacity={0.3}
           renderItem={this.renderItem}
-          data={[{ key: 1 }, { key: 2 }]}
+          data={this.state.data}
           onSnapToItem={(index) => {
             Animated.spring(this.state.pan, {
               toValue: { x: 0, y: 0 },
